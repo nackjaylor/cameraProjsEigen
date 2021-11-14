@@ -5,3 +5,7 @@ For those starting with computer vision, understanding how these projections wor
 
 
 I hope this comes in handy.
+
+## Dependencies
+
+- Eigen (>=v3.4.0)
