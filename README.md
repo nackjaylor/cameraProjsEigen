@@ -6,6 +6,16 @@ For those starting with computer vision, understanding how these projections wor
 
 I hope this comes in handy.
 
+Note: there'll be many more additions to comments and general documentation when I get around to it. But essentially:
+
+```cpp
+  CameraCal cc(<insert camera calibration params>);
+  CameraOps ops(cc);
+  
+  Eigen::Vector3d camera_point = ops.world_to_camera(point, extrinsics);
+```
+
+
 ## Dependencies
 
 - Eigen (>=v3.4.0)
