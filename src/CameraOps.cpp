@@ -1,3 +1,21 @@
+/*
+Part of Camera Projections using Eigen - a set of classes for computer vision transformations.
+Copyright (C) 2021  Jack Naylor
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>. 
+*/
+
 #include "CameraOps.h"
 #include "CameraCal.h"
 #include "Eigen/Core"
@@ -163,9 +181,7 @@ HPointArray CameraOps::world_to_camera(const PointArray& world_coord, const Homo
 
 PixelArray CameraOps::camera_to_pixel(const PointArray& camera_coord) const {
     HPointArray homogenised = homogenise_point(camera_coord);
-    ProjectionMatrix full_intrinsics = intrinsics_projection();
-    PointArray pixel = full_intrinsics*homogenised;
-    return pixel.colwise().hnormalized();
+    return camera_to_pixel(homogenised);
 }
 
 PixelArray CameraOps::camera_to_pixel(const HPointArray& camera_coord) const {
@@ -180,12 +196,43 @@ PixelArray CameraOps::camera_to_pixel(const HPointArray& camera_coord) const {
 
 
 
-PixelArray CameraOps::world_to_pixel(const PointArray& world_coord, const HomogenousMatrix& extrinsics) const {
+PixelArray CameraOps::world_to_pixel(const PointArray& world_coord, const HomogenousMatrix& extrinsics,const bool& distort) const {
     
     HPointArray homogenised = world_to_camera(world_coord,extrinsics);
+
+    if (distort) {
+        homogenised = apply_distortion(homogenised.hnormalized()).homogeneous();
+    }
     
     PixelArray pixel = camera_to_pixel(homogenised);
     return pixel;
+}
+
+
+PointArray CameraOps::apply_distortion(const PointArray& undistorted_points, const int& direction) const {
+
+    // Brown-Conrady Distortion Model
+    PixelArray normalised_points = undistorted_points.hnormalized();
+
+    VectorXd r_vec = undistorted_points.colwise().norm();
+
+    VectorXd xy_product = undistorted_points.colwise().prod();
+
+    PixelArray first_term = undistorted_points*(1+direction*m_intrinsics.m_k1*(r_vec.array().pow(2))+direction*m_intrinsics.m_k2*(r_vec.array().pow(4))+direction*m_intrinsics.m_k3*(r_vec.array().pow(6))).matrix().asDiagonal();
+    PixelArray second_term;
+    second_term.resize(undistorted_points.size());
+    second_term.row(0) = 2*direction*m_intrinsics.m_p1*xy_product+direction*m_intrinsics.m_p2*(r_vec.array().pow(2)+2*undistorted_points.row(0).array().pow(2)).matrix();
+    second_term.row(1) = 2*direction*m_intrinsics.m_p2*xy_product+direction*m_intrinsics.m_p1*(r_vec.array().pow(2)+2*undistorted_points.row(1).array().pow(2)).matrix();
+
+    PixelArray output = first_term+second_term;
+
+    return output.homogeneous();
+
+}
+
+
+PointArray CameraOps::remove_distortion(const PointArray& distorted_points) const {
+    return apply_distortion(distorted_points,-1);
 }
 
 
@@ -212,7 +259,7 @@ Point CameraOps::pixel_to_world(const Pixel& pixel, const HomogenousMatrix& extr
 }
 
 
-PointArray CameraOps::pixel_to_camera(const PixelArray& pixel, const double z) {
+PointArray CameraOps::pixel_to_camera(const PixelArray& pixel, const double& z) {
     PointArray homogenised = homogenise_pixel(pixel);
     Matrix3d inv_K = inv_camera_matrix();
     return -z*(inv_K*homogenised);
@@ -224,8 +271,12 @@ PointArray CameraOps::camera_to_world(const PointArray& camera_coord, const Homo
     return homog_world.colwise().hnormalized();
 }
 
-PointArray CameraOps::pixel_to_world(const PixelArray& pixel, const HomogenousMatrix& extrinsics, const double z) {
+PointArray CameraOps::pixel_to_world(const PixelArray& pixel, const HomogenousMatrix& extrinsics, const double& z, const bool& undistort) {
     PointArray camera_coord = pixel_to_camera(pixel,z);
+
+    if (undistort) {
+        camera_coord = remove_distortion(camera_coord);
+    }
     PointArray world_coord = camera_to_world(camera_coord,extrinsics);
     return world_coord;
 }
@@ -241,36 +292,26 @@ Matrix3d CameraOps::inv_camera_matrix() {
 
 
 HPoint CameraOps::homogenise_point(const Point& point) const {
-    HPoint homogenised = HPoint::Ones();
-    homogenised(seq(0,last-1)) = point;
+    HPoint homogenised = point.homogeneous();
 
     return homogenised;
 }
 
 HPointArray CameraOps::homogenise_point(const PointArray& points) const {
     
-    HPointArray homogenised;
-    
-    homogenised.resize(NoChange,points.cols());
-    
-    homogenised.setOnes();
-    
-    homogenised(seq(0,last-1),all) = points;
+    HPointArray homogenised = points.homogeneous();
 
     return homogenised;
 }
 
 Point CameraOps::homogenise_pixel(const Pixel& pixel) const {
-    Point homogenised = Point::Ones();
-    homogenised(seq(0,last-1)) = pixel;
+    Point homogenised = pixel.homogeneous();
+    
     return homogenised;
 }
 
 PointArray CameraOps::homogenise_pixel(const PixelArray& pixels) const {
-    PointArray homogenised;
-    homogenised.resize(NoChange,pixels.cols());
-    homogenised.setOnes();
-    homogenised(seq(0,last-1),all) = pixels;
+    PointArray homogenised = pixels.homogeneous();
     return homogenised;
 }
 
