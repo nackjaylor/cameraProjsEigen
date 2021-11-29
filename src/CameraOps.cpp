@@ -201,7 +201,8 @@ PixelArray CameraOps::world_to_pixel(const PointArray& world_coord, const Homoge
     HPointArray homogenised = world_to_camera(world_coord,extrinsics);
 
     if (distort) {
-        homogenised = apply_distortion(homogenised.hnormalized()).homogeneous();
+        PointArray cam_coords = homogenised.colwise().hnormalized();
+        homogenised = apply_distortion(cam_coords).colwise().homogeneous();
     }
     
     PixelArray pixel = camera_to_pixel(homogenised);
