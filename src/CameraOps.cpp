@@ -212,21 +212,21 @@ PixelArray CameraOps::world_to_pixel(const PointArray& world_coord, const Homoge
 PointArray CameraOps::apply_distortion(const PointArray& undistorted_points, const int& direction) const {
 
     // Brown-Conrady Distortion Model
-    PixelArray normalised_points = undistorted_points.hnormalized();
+    PixelArray normalised_points = undistorted_points.colwise().hnormalized();
 
-    VectorXd r_vec = undistorted_points.colwise().norm();
+    VectorXd r_vec = normalised_points.colwise().norm();
 
-    VectorXd xy_product = undistorted_points.colwise().prod();
+    VectorXd xy_product = normalised_points.colwise().prod();
 
-    PixelArray first_term = undistorted_points*(1+direction*m_intrinsics.m_k1*(r_vec.array().pow(2))+direction*m_intrinsics.m_k2*(r_vec.array().pow(4))+direction*m_intrinsics.m_k3*(r_vec.array().pow(6))).matrix().asDiagonal();
+    PixelArray first_term = normalised_points*(1+direction*m_intrinsics.m_k1*(r_vec.array().pow(2))+direction*m_intrinsics.m_k2*(r_vec.array().pow(4))+direction*m_intrinsics.m_k3*(r_vec.array().pow(6))).matrix().asDiagonal();
     PixelArray second_term;
-    second_term.resize(undistorted_points.size());
-    second_term.row(0) = 2*direction*m_intrinsics.m_p1*xy_product+direction*m_intrinsics.m_p2*(r_vec.array().pow(2)+2*undistorted_points.row(0).array().pow(2)).matrix();
-    second_term.row(1) = 2*direction*m_intrinsics.m_p2*xy_product+direction*m_intrinsics.m_p1*(r_vec.array().pow(2)+2*undistorted_points.row(1).array().pow(2)).matrix();
+    second_term.resize(NoChange,normalised_points.size());
+    second_term.row(0) = 2*direction*m_intrinsics.m_p1*xy_product+direction*m_intrinsics.m_p2*(r_vec.array().pow(2)+2*normalised_points.row(0).array().pow(2)).matrix();
+    second_term.row(1) = 2*direction*m_intrinsics.m_p2*xy_product+direction*m_intrinsics.m_p1*(r_vec.array().pow(2)+2*normalised_points.row(1).array().pow(2)).matrix();
 
     PixelArray output = first_term+second_term;
 
-    return output.homogeneous();
+    return output.colwise().homogeneous();
 
 }
 
