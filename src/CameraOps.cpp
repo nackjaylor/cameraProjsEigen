@@ -222,8 +222,8 @@ PointArray CameraOps::apply_distortion(const PointArray& undistorted_points, con
     PixelArray first_term = normalised_points*(1+direction*m_intrinsics.m_k1*(r_vec.array().pow(2))+direction*m_intrinsics.m_k2*(r_vec.array().pow(4))+direction*m_intrinsics.m_k3*(r_vec.array().pow(6))).matrix().asDiagonal();
     PixelArray second_term;
     second_term.resize(NoChange,normalised_points.size());
-    second_term.row(0) = 2*direction*m_intrinsics.m_p1*xy_product+direction*m_intrinsics.m_p2*(r_vec.array().pow(2)+2*normalised_points.row(0).array().pow(2)).matrix();
-    second_term.row(1) = 2*direction*m_intrinsics.m_p2*xy_product+direction*m_intrinsics.m_p1*(r_vec.array().pow(2)+2*normalised_points.row(1).array().pow(2)).matrix();
+    second_term.row(0) = 2*direction*m_intrinsics.m_p1*xy_product+direction*m_intrinsics.m_p2*(r_vec.array().pow(2)+2*normalised_points.row(0).transpose().array().pow(2)).matrix();
+    second_term.row(1) = 2*direction*m_intrinsics.m_p2*xy_product+direction*m_intrinsics.m_p1*(r_vec.array().pow(2)+2*normalised_points.row(1).transpose().array().pow(2)).matrix();
 
     PixelArray output = first_term+second_term;
 
