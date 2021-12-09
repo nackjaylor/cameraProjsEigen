@@ -246,19 +246,27 @@ class CameraOps {
          */
         PixelArray world_to_pixel(const PointArray& world_coord, const HomogenousMatrix& extrinsics, const bool& distort = false) const;
 
-
         /**
          * @brief Apply distortion to points on camera plane
-         * 
+         *
          * @param undistorted_points 3xn array of undistorted points on camera plane
          * @param direction integer multiplier (traditionally unity) for distortion parameters
          * @return PointArray 3xn array of distorted points on camera plane
          */
-        PointArray apply_distortion(const PointArray& undistorted_points, const int& direction = 1) const;
+        PointArray apply_distortion(const PointArray& undistorted_points) const;
+
+        /**
+         * @brief Apply distortion to points on camera plane
+         *
+         * @param undistorted_points 3xn array of undistorted points on camera plane
+         * @param direction integer multiplier (traditionally unity) for distortion parameters
+         * @return PointArray 3xn array of distorted points on camera plane
+         */
+        PixelArray apply_distortion(const PixelArray& undistorted_points) const;
 
         /**
          * @brief Remove distortion of points on camera plane
-         * 
+         *
          * @param distorted_points 3xn array of distorted points
          * @return PointArray 3xn array of undistorted points
          */
