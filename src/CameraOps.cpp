@@ -210,30 +210,91 @@ PixelArray CameraOps::world_to_pixel(const PointArray& world_coord, const Homoge
 }
 
 
-PointArray CameraOps::apply_distortion(const PointArray& undistorted_points, const int& direction) const {
+PointArray CameraOps::apply_distortion(const PointArray& undistorted_points) const {
 
     // Brown-Conrady Distortion Model
+
+
     PixelArray normalised_points = undistorted_points.colwise().hnormalized();
 
     VectorXd r_vec = normalised_points.colwise().norm();
 
     VectorXd xy_product = normalised_points.colwise().prod();
 
-    PixelArray first_term = normalised_points*(1+direction*m_intrinsics.m_k1*(r_vec.array().pow(2))+direction*m_intrinsics.m_k2*(r_vec.array().pow(4))+direction*m_intrinsics.m_k3*(r_vec.array().pow(6))).matrix().asDiagonal();
+
+    PixelArray first_term = normalised_points*(1+m_intrinsics.m_k1*(r_vec.array().pow(2))+m_intrinsics.m_k2*(r_vec.array().pow(4))+m_intrinsics.m_k3*(r_vec.array().pow(6))).matrix().asDiagonal();
+
     PixelArray second_term;
-    second_term.resize(NoChange,normalised_points.size());
-    second_term.row(0) = 2*direction*m_intrinsics.m_p1*xy_product+direction*m_intrinsics.m_p2*(r_vec.array().pow(2)+2*normalised_points.row(0).transpose().array().pow(2)).matrix();
-    second_term.row(1) = 2*direction*m_intrinsics.m_p2*xy_product+direction*m_intrinsics.m_p1*(r_vec.array().pow(2)+2*normalised_points.row(1).transpose().array().pow(2)).matrix();
+    second_term.resize(NoChange,undistorted_points.cols());
+
+    second_term.row(0) = 2*m_intrinsics.m_p1*xy_product+m_intrinsics.m_p2*(r_vec.array().pow(2)+2*normalised_points.row(0).transpose().array().pow(2)).matrix();
+    second_term.row(1) = 2*m_intrinsics.m_p2*xy_product+m_intrinsics.m_p1*(r_vec.array().pow(2)+2*normalised_points.row(1).transpose().array().pow(2)).matrix();
+
+
+    PixelArray output = first_term+second_term;
+    return output.colwise().homogeneous();
+
+}
+
+PixelArray CameraOps::apply_distortion(const PixelArray& undistorted_points) const {
+
+    // Brown-Conrady Distortion Model
+
+
+    PixelArray normalised_points = undistorted_points;
+
+    VectorXd r_vec = normalised_points.colwise().norm();
+
+    VectorXd xy_product = normalised_points.colwise().prod();
+
+
+    PixelArray first_term = normalised_points*(1+m_intrinsics.m_k1*(r_vec.array().pow(2))+m_intrinsics.m_k2*(r_vec.array().pow(4))+m_intrinsics.m_k3*(r_vec.array().pow(6))).matrix().asDiagonal();
+
+    PixelArray second_term;
+    second_term.resize(NoChange,undistorted_points.cols());
+
+    second_term.row(0) = 2*m_intrinsics.m_p1*xy_product+m_intrinsics.m_p2*(r_vec.array().pow(2)+2*normalised_points.row(0).transpose().array().pow(2)).matrix();
+    second_term.row(1) = 2*m_intrinsics.m_p2*xy_product+m_intrinsics.m_p1*(r_vec.array().pow(2)+2*normalised_points.row(1).transpose().array().pow(2)).matrix();
+
 
     PixelArray output = first_term+second_term;
 
-    return output.colwise().homogeneous();
+    return output;
 
 }
 
 
 PointArray CameraOps::remove_distortion(const PointArray& distorted_points) const {
-    return apply_distortion(distorted_points,-1);
+
+    PixelArray estimated = distorted_points.colwise().hnormalized();
+    VectorXd r_vec = estimated.colwise().norm();
+
+    VectorXd first_term = (1+m_intrinsics.m_k1*(r_vec.array().pow(2))+m_intrinsics.m_k2*(r_vec.array().pow(4))+m_intrinsics.m_k3*(r_vec.array().pow(6)));
+    estimated = estimated.array().colwise()/first_term.array();
+    VectorXd xy_product = estimated.colwise().prod();
+    PixelArray second_term;
+    second_term.resize(NoChange,distorted_points.cols());
+
+    second_term.row(0) = 2*m_intrinsics.m_p1*xy_product+m_intrinsics.m_p2*(r_vec.array().pow(2)+2*estimated.row(0).transpose().array().pow(2)).matrix();
+    second_term.row(1) = 2*m_intrinsics.m_p2*xy_product+m_intrinsics.m_p1*(r_vec.array().pow(2)+2*estimated.row(1).transpose().array().pow(2)).matrix();
+    int iter = 100;
+    PixelArray new_pixels;
+    while (iter > 0) {
+        estimated = (distorted_points-second_term).array().colwise()/first_term.array();
+        new_pixels = apply_distortion(estimated);
+
+        if ((new_pixels-estimated).colwise().norm().maxCoeff()<1e-9) {
+            break;
+        }
+        r_vec = new_pixels.colwise().norm();
+        xy_product = estimated.colwise().prod();
+        first_term = (1+m_intrinsics.m_k1*(r_vec.array().pow(2))+m_intrinsics.m_k2*(r_vec.array().pow(4))+m_intrinsics.m_k3*(r_vec.array().pow(6)));
+        second_term.row(0) = 2*m_intrinsics.m_p1*xy_product+m_intrinsics.m_p2*(r_vec.array().pow(2)+2*estimated.row(0).transpose().array().pow(2)).matrix();
+        second_term.row(1) = 2*m_intrinsics.m_p2*xy_product+m_intrinsics.m_p1*(r_vec.array().pow(2)+2*estimated.row(1).transpose().array().pow(2)).matrix();
+        iter--;
+    }
+
+    return new_pixels.colwise().homogeneous();
 }
 
 
