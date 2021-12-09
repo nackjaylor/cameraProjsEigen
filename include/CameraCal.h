@@ -31,6 +31,7 @@ class CameraCal {
         double m_pix_size = 5.5e-6;
         double m_k1 = 0, m_k2 = 0, m_k3 = 0;
         double m_p1 = 0, m_p2 = 0;
+        double m_b1 = 0, m_b2 = 0;
         double m_ppx = m_img_w/2, m_ppy = m_img_h/2;
         Eigen::Matrix3d m_camera_matrix = new_matrix();
 
@@ -71,6 +72,25 @@ class CameraCal {
          */
         CameraCal(double fx, double fy, int img_w, int img_h, double ppx, double ppy, double k1, double k2, double k3, double p1, double p2);
         
+        /**
+         * @brief Construct a new Camera Cal object
+         * 
+         * @param fx focal length in x (m)
+         * @param fy focal length in y (m)
+         * @param img_w image width in pixels
+         * @param img_h image height in pixels
+         * @param ppx principal point in x
+         * @param ppy principal point in y
+         * @param k1 K1 distortion parameter
+         * @param k2 K2 distortion parameter
+         * @param k3 K3 distortion parameter
+         * @param p1 P1 distortion parameter
+         * @param p2 P2 distortion parameter
+         * @param b1 B1 distortion parameter
+         * @param b2 B2 distortion parameter
+         */
+        CameraCal(double fx, double fy, int img_w, int img_h, double ppx, double ppy, double k1, double k2, double k3, double p1, double p2,double b1, double b2);
+    
         /**
          * @brief Return principal point in x
          * 
